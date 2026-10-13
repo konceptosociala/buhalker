@@ -1,0 +1,9 @@
+# Build
+/build/
+
+# clangd
+/.cache/
+
+# Meson-fetched subprojects (re-downloaded from the .wrap files)
+/subprojects/*
+!/subprojects/*.wrap
