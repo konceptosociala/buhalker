@@ -181,14 +181,14 @@ class ChunkMeshGenerator {
 
             for (const FaceDef& face : FACES) {
                 if (isFaceVisible(chunk, face, x, y, z)) {
-                    addFace(tileMap, builder, block, face, x, y, z, uo, vo);
+                    addFace(builder, tileMap, block, face, x, y, z, uo, vo);
                 }
             }
         }
 
         void addFace(
-            const TileMap& tileMap,
             MeshBuilder& builder,
+            const TileMap& tileMap,
             const Block& block,
             const FaceDef& face,
             int xi,

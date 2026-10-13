@@ -45,6 +45,7 @@ class TileMap {
             }
 
             texture = LoadTexture(path.c_str());
+            SetTextureFilter(texture, TEXTURE_FILTER_POINT);
 
             if (!IsTextureValid(texture)) {
                 throw std::runtime_error(std::format("Error loading texture: {}", path));
@@ -62,6 +63,9 @@ class TileMap {
             relativeTileHeight = tileHeight / texture.height;
         }
 
+        TileMap(const TileMap&) = delete;
+        TileMap& operator=(const TileMap&) = delete;
+
         ~TileMap() {
             UnloadTexture(texture);
         }
@@ -73,6 +77,7 @@ class TileMap {
             return SingleTile(resW - 1, resH - 1);
         }
 
+        const Texture2D& getTexture() const { return texture; }
         float getTileWidth() const { return tileWidth; }
         float getTileHeight() const { return tileHeight; }
         float getRelativeTileWidth() const { return relativeTileWidth; }

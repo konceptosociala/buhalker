@@ -1,10 +1,11 @@
 #pragma once
 
-#include "src/TileMap.hpp"
 #include <cstdint>
 #include <string>
 #include <stdexcept>
 #include <raylib.h>
+
+#include "TileMap.hpp"
 
 struct BlockData {
     static constexpr uint32_t ID_MASK = 0x3FF;
@@ -18,7 +19,7 @@ struct BlockData {
 
     static constexpr BlockData fromId(uint16_t id) {
         if (id > 1023) {
-            throw std::out_of_range("Block ID exceeds 10 bits");
+            throw std::out_of_range(std::format("Block ID exceeds 10 bits: {}", id));
         }
 
         return BlockData(id);
