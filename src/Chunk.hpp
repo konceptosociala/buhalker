@@ -8,10 +8,16 @@ constexpr int CHUNK_SIZE = 16;
 constexpr int VOXEL_COUNT = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 
 struct Chunk {
-    std::array<BlockData, VOXEL_COUNT> voxels;
+    std::array<BlockData, VOXEL_COUNT> voxels{};
+
+    Chunk() = default;
 
     static constexpr int index(int x, int y, int z) {
         return x + CHUNK_SIZE * y + CHUNK_SIZE * CHUNK_SIZE * z;
+    }
+
+    void set(BlockData blockData, int x, int y, int z) {
+        voxels[index(x, y, z)] = blockData;
     }
 
     BlockData get(int x, int y, int z) const {

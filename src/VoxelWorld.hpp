@@ -21,7 +21,3 @@ struct ChunkHash {
 };
 
 using VoxelWorld = std::unordered_map<ChunkPos, Chunk, ChunkHash>;
-
-void x() {
-    Chunk x = Chunk();
-}

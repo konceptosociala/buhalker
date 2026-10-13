@@ -2,10 +2,11 @@
 
 #include <raylib.h>
 
-#include "Chunk.hpp"
-#include "BlockRegistry.hpp"
 #include "MeshBuilder.hpp"
 #include "Utils.hpp"
+#include "Chunk.hpp"
+#include "TileMap.hpp"
+#include "BlockRegistry.hpp"
 
 enum class Face {
     Top,
@@ -88,6 +89,8 @@ constexpr float FACE_UVS[4][2] = { {0, 0}, {0, 1}, {1, 0}, {1, 1} };
 
 class ChunkMeshGenerator {
     public:
+        ChunkMeshGenerator() = default;
+
         Mesh generateChunkMesh(
             const BlockRegistry& blocks,
             const TileMap& tileMap,
@@ -178,12 +181,13 @@ class ChunkMeshGenerator {
 
             for (const FaceDef& face : FACES) {
                 if (isFaceVisible(chunk, face, x, y, z)) {
-                    addFace(builder, block, face, x, y, z, uo, vo);
+                    addFace(tileMap, builder, block, face, x, y, z, uo, vo);
                 }
             }
         }
 
         void addFace(
+            const TileMap& tileMap,
             MeshBuilder& builder,
             const Block& block,
             const FaceDef& face,
@@ -193,9 +197,10 @@ class ChunkMeshGenerator {
             float uo,
             float vo
         ) {
-            const SingleTile& t = match(block.getTile(),
-                [](const SingleTile& t) -> const SingleTile& { return t; },
-                [&](const SixTile& t) -> const SingleTile&   { return getFaceTile(t, face.face); }
+            const SingleTile t = match(block.getTile(),
+                [](const SingleTile& t) -> SingleTile { return t; },
+                [&](const SixTile& t) -> SingleTile   { return getFaceTile(t, face.face); },
+                [&](const InvalidTile&) -> SingleTile { return std::get<SingleTile>(tileMap.invalid()); }
             );
 
             float u = uo * t.u, v = vo * t.v;

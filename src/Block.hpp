@@ -1,10 +1,9 @@
 #pragma once
 
+#include "src/TileMap.hpp"
 #include <cstdint>
-#include <format>
-#include <stdexcept>
 #include <string>
-#include <variant>
+#include <stdexcept>
 #include <raylib.h>
 
 struct BlockData {
@@ -13,86 +12,44 @@ struct BlockData {
     // 1-10 bits = block id 0-1023
     uint32_t data;
 
-    uint16_t getId() {
+    constexpr BlockData() : data(0) {}
+
+    constexpr BlockData(uint32_t data) : data(data) {}
+
+    static constexpr BlockData fromId(uint16_t id) {
+        if (id > 1023) {
+            throw std::out_of_range("Block ID exceeds 10 bits");
+        }
+
+        return BlockData(id);
+    }
+
+    uint16_t getId() const {
         return static_cast<uint16_t>(data & ID_MASK);
     }
 
-    bool isAir() {
+    bool isAir() const {
         return data == 0;
     }
 };
 
-struct SingleTile {
-    uint8_t u;
-    uint8_t v;
-};
-
-struct SixTile {
-    SingleTile top;
-    SingleTile bottom;
-    SingleTile left;
-    SingleTile right;
-    SingleTile front;
-    SingleTile back;
-};
-
-using TextureTile = std::variant<SingleTile, SixTile>;
-
-class TileMap {
-    Texture2D texture;
-    float tileWidth, tileHeight;
-    float relativeTileWidth, relativeTileHeight;
-
-    public:
-        TileMap(
-            std::string path,
-            float tileWidth, 
-            float tileHeight
-        ) : tileWidth(tileWidth), tileHeight(tileHeight) {
-            if (tileWidth < 0) {
-                throw std::runtime_error(std::format("Tile width is less than 0: {}", tileWidth));
-            }
-
-            if (tileHeight < 0) {
-                throw std::runtime_error(std::format("Tile height is less than 0: {}", tileHeight));
-            }
-
-            texture = LoadTexture(path.c_str());
-
-            if (!IsTextureValid(texture)) {
-                throw std::runtime_error(std::format("Error loading texture: {}", path));
-            }
-
-            if (tileWidth > texture.width) {
-                throw std::runtime_error(std::format("Tile width is bigger than texture width: {} > {}", tileWidth, texture.width));
-            }
-
-            if (tileHeight > texture.height) {
-                throw std::runtime_error(std::format("Tile height is bigger than texture height: {} > {}", tileHeight, texture.height));
-            }
-
-            relativeTileWidth = tileWidth / texture.width;
-            relativeTileHeight = tileHeight / texture.height;
-        }
-
-        ~TileMap() {
-            UnloadTexture(texture);
-        }
-
-        float getTileWidth() const { return tileWidth; }
-        float getTileHeight() const { return tileHeight; }
-        float getRelativeTileWidth() const { return relativeTileWidth; }
-        float getRelativeTileHeight() const { return relativeTileHeight; }      
-};
-
 class Block {
-    std::string id;
+    std::string name;
     TextureTile tile;
     BlockData defaultData;
 
     public:
-        std::string getId() {
-            return id;
+        constexpr Block(std::string name, uint16_t id) 
+            : name(name)
+            , tile(InvalidTile {})
+            , defaultData(BlockData::fromId(id)) {}
+
+        std::uint16_t getId() const {
+            return defaultData.getId();
+        }
+
+        std::string getName() const {
+            return name;
         }
     
         BlockData getDefaultData() const {
@@ -101,5 +58,10 @@ class Block {
 
         const TextureTile& getTile() const {
             return tile;
+        }
+
+        constexpr Block& withTile(TextureTile tile) {
+            this->tile = std::move(tile);
+            return *this;
         }
 };
