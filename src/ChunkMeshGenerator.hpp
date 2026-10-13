@@ -3,73 +3,212 @@
 #include <raylib.h>
 
 #include "Chunk.hpp"
+#include "BlockRegistry.hpp"
+#include "MeshBuilder.hpp"
+#include "Utils.hpp"
+
+enum class Face {
+    Top,
+    Bottom,
+    Left,
+    Right,
+    Front,
+    Back
+};
+
+struct Corner {
+    float x, y, z;
+};
+
+struct FaceDef {
+    Face face;
+    int dx, dy, dz;
+    Corner corners[4];
+};
+
+constexpr FaceDef FACES[6] = {
+    {
+        Face::Top, 0, 1, 0,
+        {
+            Corner(0, 1, 0), 
+            Corner(0, 1, 1), 
+            Corner(1, 1, 0), 
+            Corner(1, 1, 1),
+        }
+    },
+    {
+        Face::Bottom, 0, -1, 0,
+        {
+            Corner(0, 0, 1), 
+            Corner(0, 0, 0), 
+            Corner(1, 0, 1), 
+            Corner(1, 0, 0),
+        }
+    },
+    {
+        Face::Left, -1, 0, 0,
+        {
+            Corner(0, 1, 0), 
+            Corner(0, 0, 0), 
+            Corner(0, 1, 1), 
+            Corner(0, 0, 1),
+        }
+    },
+    {
+        Face::Right, 1, 0, 0,
+        {
+            Corner(1, 1, 1), 
+            Corner(1, 0, 1), 
+            Corner(1, 1, 0), 
+            Corner(1, 0, 0),
+        }
+    },
+    {
+        Face::Front, 0, 0, 1,
+        {
+            Corner(0, 1, 1), 
+            Corner(0, 0, 1), 
+            Corner(1, 1, 1), 
+            Corner(1, 0, 1),
+        }
+    },
+    {
+        Face::Back, 0, 0, -1,
+        {
+            Corner(1, 1, 0), 
+            Corner(1, 0, 0), 
+            Corner(0, 1, 0), 
+            Corner(0, 0, 0),
+        }
+    },
+};
+
+constexpr int FACE_TRIANGLES[6] = { 0, 1, 2, 2, 1, 3 };
+constexpr float FACE_UVS[4][2] = { {0, 0}, {0, 1}, {1, 0}, {1, 1} };
 
 class ChunkMeshGenerator {
-    Mesh generateChunkMesh(const Chunk& chunk) {
-        constexpr int maxFaces = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE * 6;
+    public:
+        Mesh generateChunkMesh(
+            const BlockRegistry& blocks,
+            const TileMap& tileMap,
+            const Chunk& chunk
+        ) {
+            int faceCount = countFaces(chunk);
 
-        Mesh mesh = {};
-        mesh.triangleCount = maxFaces * 2;
-        mesh.vertexCount = maxFaces * 6;
-        mesh.vertices = static_cast<float*>(
-            MemAlloc(mesh.vertexCount * 3 * sizeof(float))
-        );
-        mesh.texcoords = static_cast<float*>(
-            MemAlloc(mesh.vertexCount * 2 * sizeof(float))
-        );
-        mesh.normals = static_cast<float*>(
-            MemAlloc(mesh.vertexCount * 3 * sizeof(float))
-        );
+            MeshBuilder builder(faceCount);
 
+            for (int z = 0; z < CHUNK_SIZE; z++) {
+                for (int y = 0; y < CHUNK_SIZE; y++) {
+                    for (int x = 0; x < CHUNK_SIZE; x++) {
+                        processBlock(chunk, blocks, tileMap, builder, x, y, z);
+                    }
+                }
+            }
 
-
-        return mesh;
-    }
-
-    void processBlock(
-        const Chunk& chunk, 
-        Mesh& mesh,
-        int x, 
-        int y, 
-        int z
-    ) {
-        bool hasTop    = chunk.isInBounds(x, y + 1, z) && chunk.hasSolid(x, y + 1, z);
-        bool hasBottom = chunk.isInBounds(x, y - 1, z) && chunk.hasSolid(x, y - 1, z);
-        bool hasLeft   = chunk.isInBounds(x - 1, y, z) && chunk.hasSolid(x - 1, y, z);
-        bool hasRight  = chunk.isInBounds(x + 1, y, z) && chunk.hasSolid(x + 1, y, z);
-        bool hasFront  = chunk.isInBounds(x, y, z + 1) && chunk.hasSolid(x, y, z + 1);
-        bool hasBack   = chunk.isInBounds(x, y, z - 1) && chunk.hasSolid(x, y, z - 1);
-
-        if (!hasTop) {
-            addFaceTop(mesh, x, y, z);
+            return builder.toMesh();
         }
 
-        // if (!hasBottom)
-    }
+    private:
+        const SingleTile& getFaceTile(const SixTile& tile, Face face) {
+            switch (face) {
+                case Face::Top:    return tile.top;
+                case Face::Bottom: return tile.bottom;
+                case Face::Left:   return tile.left;
+                case Face::Right:  return tile.right;
+                case Face::Front:  return tile.front;
+                case Face::Back:   return tile.back;
+            }
 
-    void addFaceTop(Mesh& mesh, int xi, int yi, int zi) {
-        float x = (float) xi;
-        float y = (float) yi;
-        float z = (float) zi;
+            return tile.top;
+        }
 
-        float vertices[18] = { 
-            x,       y + 1, z,
-            x,       y + 1, z + 1,
-            x + 1,   y + 1, z,
-            x + 1,   y + 1, z,
-            x,       y + 1, z + 1,
-            x + 1,   y + 1, z + 1,
-        };
+        bool isFaceVisible(
+            const Chunk& chunk,
+            const FaceDef& face,
+            int x,
+            int y,
+            int z
+        ) {
+            int nx = x + face.dx;
+            int ny = y + face.dy;
+            int nz = z + face.dz;
 
-        float uvs[12] = { 
-            (u,       v)
-            (u,       v + 0.5)
-            (u + 0.5, v)
-            (u + 0.5, v)
-            (u,       v + 0.5)
-            (u + 0.5, v + 0.5)
-        };
+            return !(chunk.isInBounds(nx, ny, nz) && chunk.hasSolid(nx, ny, nz));
+        }
 
-        std::copy(vertices, vertices + 18, mesh.vertices);
-    }
+        int countFaces(const Chunk& chunk) {
+            int count = 0;
+
+            for (int z = 0; z < CHUNK_SIZE; z++) {
+                for (int y = 0; y < CHUNK_SIZE; y++) {
+                    for (int x = 0; x < CHUNK_SIZE; x++) {
+                        if (!chunk.hasSolid(x, y, z)) {
+                            continue;
+                        }
+
+                        for (const FaceDef& face : FACES) {
+                            if (isFaceVisible(chunk, face, x, y, z)) {
+                                count++;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return count;
+        }
+
+        void processBlock(
+            const Chunk& chunk,
+            const BlockRegistry& blocks,
+            const TileMap& tileMap,
+            MeshBuilder& builder,
+            int x,
+            int y,
+            int z
+        ) {
+            if (!chunk.hasSolid(x, y, z)) {
+                return;
+            }
+
+            const Block& block = blocks.getBlock(chunk.get(x, y, z));
+
+            float uo = tileMap.getRelativeTileWidth();
+            float vo = tileMap.getRelativeTileHeight();
+
+            for (const FaceDef& face : FACES) {
+                if (isFaceVisible(chunk, face, x, y, z)) {
+                    addFace(builder, block, face, x, y, z, uo, vo);
+                }
+            }
+        }
+
+        void addFace(
+            MeshBuilder& builder,
+            const Block& block,
+            const FaceDef& face,
+            int xi,
+            int yi,
+            int zi,
+            float uo,
+            float vo
+        ) {
+            const SingleTile& t = match(block.getTile(),
+                [](const SingleTile& t) -> const SingleTile& { return t; },
+                [&](const SixTile& t) -> const SingleTile&   { return getFaceTile(t, face.face); }
+            );
+
+            float u = uo * t.u, v = vo * t.v;
+
+            for (int index : FACE_TRIANGLES) {
+                const Corner& c = face.corners[index];
+                const float* uv = FACE_UVS[index];
+
+                builder.addVertex(
+                    xi + c.x, yi + c.y, zi + c.z,
+                    u + uo * uv[0], v + vo * uv[1],
+                    face.dx, face.dy, face.dz
+                );
+            }
+        }
 };

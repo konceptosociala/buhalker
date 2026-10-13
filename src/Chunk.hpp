@@ -1,24 +1,11 @@
 #pragma once
 
 #include <array>
-#include <cstdint>
-#include <string>
 
-const int CHUNK_SIZE = 16;
-const int VOXEL_COUNT = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
+#include "Block.hpp"
 
-class Block {
-
-    std::string name;
-};
-
-struct BlockData {
-    uint32_t data;
-
-    bool isAir() {
-        return data == 0;
-    }
-};
+constexpr int CHUNK_SIZE = 16;
+constexpr int VOXEL_COUNT = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 
 struct Chunk {
     std::array<BlockData, VOXEL_COUNT> voxels;
@@ -27,11 +14,11 @@ struct Chunk {
         return x + CHUNK_SIZE * y + CHUNK_SIZE * CHUNK_SIZE * z;
     }
 
-    BlockData& at(int x, int y, int z) {
+    BlockData get(int x, int y, int z) const {
         return voxels[index(x, y, z)];
     }
 
-    BlockData at(int x, int y, int z) const {
+    BlockData& getMut(int x, int y, int z) {
         return voxels[index(x, y, z)];
     }
 
@@ -42,6 +29,6 @@ struct Chunk {
     }
 
     bool hasSolid(int x, int y, int z) const {
-        return !this->at(x, y, z).isAir();
+        return !this->get(x, y, z).isAir();
     }
 };
