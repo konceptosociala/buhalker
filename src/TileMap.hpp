@@ -66,7 +66,8 @@ class TileMap {
         TileMap(const TileMap&) = delete;
         TileMap& operator=(const TileMap&) = delete;
 
-        ~TileMap() {
+        /// Call only in "Dispose" systems
+        void dispose() {
             UnloadTexture(texture);
         }
 
