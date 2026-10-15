@@ -45,12 +45,17 @@ class Chunk {
             return !this->get(x, y, z).isAir();
         }
 
-        static Chunk testChunk() {
+        static Chunk testChunk(bool inverse) {
             Chunk chunk;
             for (int x = 0; x < 16; x++) {
                 for (int z = 0; z < 16; z++) {
-                    chunk.set(DIRT.getDefaultData(), x, 2, z);
-                    chunk.set(STONE.getDefaultData(), x, 1, z);
+                    if (inverse) {
+                        chunk.set(DIRT.getDefaultData(), x, 2, z);
+                        chunk.set(STONE.getDefaultData(), x, 1, z);
+                    } else {
+                        chunk.set(DIRT.getDefaultData(), x, 1, z);
+                        chunk.set(STONE.getDefaultData(), x, 2, z);
+                    }
                 }
             }
             return chunk;
@@ -78,6 +83,8 @@ struct DirtyChunk {};
 
 struct LoadingChunk {};
 
+struct VisibleChunk {};
+
 struct ChunkMaterial {
     Material value;
 
@@ -94,20 +101,28 @@ struct ChunkModule {
         world.component<ChunkStorage>().add(flecs::Singleton);
         world.set(ChunkStorage());
 
-        // --------------- Test chunk ---------------
-        flecs::entity chunk = world.entity()
-            .set(Chunk::testChunk())
-            .set(ChunkMesh())
-            .emplace<ChunkMaterial>(world.get<TileMap>())
-            .add<DirtyChunk>();
-
-        world.get_mut<ChunkStorage>()[{0, 0, 0}] = chunk;
+        // --------------- Test chunks ---------------
+        for (int x = -1; x <= 1; x++) {
+            for (int z = -1; z <= 1; z++) {
+                addChunk(world, {x, -1, z}, (x + z) % 2 == 0);
+            }
+        }
         // ------------------------------------------
 
-        world.system<const ChunkMesh, const ChunkMaterial>("Chunk rendering system")
+        world.system<
+            const ChunkMesh, 
+            const ChunkPos, 
+            const ChunkMaterial, 
+            const VisibleChunk
+        >("Chunk rendering system")
             .kind<Draw3D>()
-            .each([](const ChunkMesh& mesh, const ChunkMaterial& mat) {
-                DrawMesh(mesh.value, mat.value, MatrixIdentity());
+            .each([](const ChunkMesh& mesh, const ChunkPos& pos, const ChunkMaterial& mat, const VisibleChunk&) {
+                Matrix transform = MatrixTranslate(
+                    (float)(pos.x * CHUNK_SIZE),
+                    (float)(pos.y * CHUNK_SIZE),
+                    (float)(pos.z * CHUNK_SIZE)
+                );
+                DrawMesh(mesh.getValue(), mat.value, transform);
             });
 
         world.system<const ChunkMaterial>("Chunk dispose system")
@@ -116,5 +131,17 @@ struct ChunkModule {
                 mat.value.maps[MATERIAL_MAP_ALBEDO].texture = {};
                 UnloadMaterial(mat.value);
             });
+    }
+
+    void addChunk(flecs::world& world, ChunkPos pos, bool inverse) {
+        flecs::entity chunk = world.entity()
+            .set(Chunk::testChunk(inverse))
+            .set(pos)
+            .set(ChunkMesh())
+            .emplace<ChunkMaterial>(world.get<TileMap>())
+            .add<VisibleChunk>()
+            .add<DirtyChunk>();
+
+        world.get_mut<ChunkStorage>()[pos] = chunk;
     }
 };

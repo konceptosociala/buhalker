@@ -6,13 +6,24 @@
 
 #include "EcsStages.hpp"
 #include "GlobalCamera.hpp"
+#include "Chunk.hpp"
+
+constexpr float GRAVITY = 9.81f;
 
 struct PlayerState {
-    Vector3 position = Vector3(0, 2, 0);
+    Vector3 position = Vector3(5, 5, 5);
     Vector3 velocity = Vector3();
     float yaw = 0.0f;
     float pitch = 0.0f;
     bool onGround = false;
+
+    ChunkPos chunkPos() {
+        return ChunkPos(
+            ((int) position.x) >> 4,
+            ((int) position.y) >> 4,
+            ((int) position.z) >> 4
+        );
+    }
 };
 
 struct PlayerConfig {
@@ -144,6 +155,20 @@ struct PlayerModule {
             .kind<Update>()
             .each([](const Camera3D& cam, const CurrentPlayer, GlobalCamera3D& globalCam) {
                 globalCam.value = cam;
+            });
+
+        world.system<PlayerState, const ChunkStorage, const DeltaTime>("Physics test")
+            .kind<Update>()
+            .each([](PlayerState& state, const ChunkStorage& chunks, const DeltaTime& dt) {
+                if (!state.onGround) {
+                    state.velocity.y -= GRAVITY * dt.value;
+                }
+
+                state.position.y += state.velocity.y * dt.value;
+
+                ChunkPos playerChunkPos = state.chunkPos();
+                // const Chunk& playerChunk = chunks.at(playerChunkPos).get<Chunk>();
+                
             });
     }
 };

@@ -17,9 +17,9 @@ int main() {
     DisableCursor();
 
     world.import<GlobalCameraModule>();
-    world.import<PlayerModule>();
     world.import<ChunkMeshGeneratorModule>();
     world.import<ChunkModule>();
+    world.import<PlayerModule>();
 
     world.run_pipeline(stages.setup);
 

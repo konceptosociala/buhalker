@@ -18,9 +18,9 @@ class MeshBuilder {
             float u, float v,
             float nx, float ny, float nz
         ) {
-            float* p = target.value.vertices + vertexCount * 3;
-            float* t = target.value.texcoords + vertexCount * 2;
-            float* n = target.value.normals + vertexCount * 3;
+            float* p = target.getValue().vertices + vertexCount * 3;
+            float* t = target.getValue().texcoords + vertexCount * 2;
+            float* n = target.getValue().normals + vertexCount * 3;
 
             p[0] = x;  p[1] = y;  p[2] = z;
             t[0] = u;  t[1] = v;
