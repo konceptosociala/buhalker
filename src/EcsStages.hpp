@@ -8,6 +8,12 @@ struct Dispose {};
 struct Draw2D {};
 struct Draw3D {};
 
+struct DeltaTime {
+    float value;
+
+    DeltaTime(float value = 0.0f) : value(value) {}
+};
+
 struct EcsStages {
     flecs::entity setup,
                   update,
@@ -16,6 +22,8 @@ struct EcsStages {
                   draw3d;
 
     EcsStages(flecs::world& world) {
+        world.component<DeltaTime>().add(flecs::Singleton);
+
         setup = world.pipeline()
             .with(flecs::System)
             .with<Setup>()

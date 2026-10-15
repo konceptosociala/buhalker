@@ -1,5 +1,6 @@
 #pragma once
 
+#include <flecs.h>
 #include <raylib.h>
 
 #include "MeshBuilder.hpp"
@@ -7,6 +8,7 @@
 #include "Chunk.hpp"
 #include "TileMap.hpp"
 #include "BlockRegistry.hpp"
+#include "EcsStages.hpp"
 
 enum class Face {
     Top,
@@ -91,14 +93,17 @@ class ChunkMeshGenerator {
     public:
         ChunkMeshGenerator() = default;
 
-        Mesh generateChunkMesh(
+        // Rebuilds mesh in place, reusing its 
+        // GPU buffers when they are big enough.
+        void generateChunkMesh(
             const BlockRegistry& blocks,
             const TileMap& tileMap,
-            const Chunk& chunk
+            const Chunk& chunk,
+            ChunkMesh& mesh
         ) {
             int faceCount = countFaces(chunk);
 
-            MeshBuilder builder(faceCount);
+            MeshBuilder builder(mesh, faceCount);
 
             for (int z = 0; z < CHUNK_SIZE; z++) {
                 for (int y = 0; y < CHUNK_SIZE; y++) {
@@ -108,7 +113,7 @@ class ChunkMeshGenerator {
                 }
             }
 
-            return builder.toMesh();
+            builder.finish();
         }
 
     private:
@@ -216,4 +221,36 @@ class ChunkMeshGenerator {
                 );
             }
         }
+};
+
+struct ChunkMeshGeneratorModule {
+    ChunkMeshGeneratorModule(flecs::world& world) {
+        world.module<ChunkMeshGeneratorModule>();
+
+        world.component<ChunkMeshGenerator>().add(flecs::Singleton);
+        world.component<TileMap>().add(flecs::Singleton);
+
+        world.add<ChunkMeshGenerator>();
+        world.emplace<TileMap>("assets/tilemap.png", 16.0f, 16.0f);
+
+        world.system<ChunkMeshGenerator, const TileMap, const Chunk, ChunkMesh>("Chunk mesh generation")
+            .with<DirtyChunk>()
+            .kind<Update>()
+            .each([](
+                flecs::entity e,
+                ChunkMeshGenerator generator,
+                const TileMap& tileMap,
+                const Chunk& chunk,
+                ChunkMesh& mesh
+            ) {
+                generator.generateChunkMesh(BLOCK_REGISTRY, tileMap, chunk, mesh);
+                e.remove<DirtyChunk>();
+            });
+
+        world.system<ChunkMesh>("Dispose chunk meshes")
+            .kind<Dispose>()
+            .each([](ChunkMesh& mesh) {
+                mesh.unload();
+            });
+    }
 };
